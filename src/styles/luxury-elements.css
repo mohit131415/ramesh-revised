@@ -1,0 +1,151 @@
+/* Luxury gold gradient */
+.bg-luxury-gold {
+    background: linear-gradient(135deg, #f0e6c9, #d3ae6e, #b99656, #d3ae6e, #f0e6c9);
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+  }
+  
+  @keyframes gradientShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  
+  /* Elegant border animation */
+  .luxury-border {
+    position: relative;
+  }
+  
+  .luxury-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: 0.5rem;
+    background: linear-gradient(to right, rgba(211, 174, 110, 0.3), rgba(211, 174, 110, 0.8), rgba(211, 174, 110, 0.3));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  
+  /* Luxury card hover effect */
+  .luxury-card {
+    transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  
+  .luxury-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 30px -15px rgba(211, 174, 110, 0.15);
+  }
+  
+  /* Gold shimmer effect */
+  .gold-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .gold-shimmer::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(211, 174, 110, 0.1),
+      rgba(211, 174, 110, 0.2),
+      rgba(211, 174, 110, 0.1),
+      transparent
+    );
+    transform: rotate(30deg);
+    animation: shimmerEffect 3s infinite linear;
+    pointer-events: none;
+  }
+  
+  @keyframes shimmerEffect {
+    0% {
+      transform: translateX(-100%) rotate(30deg);
+    }
+    100% {
+      transform: translateX(100%) rotate(30deg);
+    }
+  }
+  
+  /* Elegant corner decorations */
+  .elegant-corner {
+    position: relative;
+  }
+  
+  .elegant-corner::before,
+  .elegant-corner::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(211, 174, 110, 0.5);
+    pointer-events: none;
+  }
+  
+  .elegant-corner::before {
+    top: 5px;
+    left: 5px;
+    border-right: none;
+    border-bottom: none;
+  }
+  
+  .elegant-corner::after {
+    bottom: 5px;
+    right: 5px;
+    border-left: none;
+    border-top: none;
+  }
+  
+  /* Premium badge */
+  .premium-badge {
+    background: linear-gradient(135deg, #d3ae6e, #b99656);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(185, 150, 86, 0.3);
+  }
+  
+  /* Luxury text shadow */
+  .luxury-text {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Elegant divider */
+  .elegant-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(211, 174, 110, 0.5), transparent);
+    margin: 1.5rem 0;
+  }
+  
+  /* Luxury button */
+  .luxury-button {
+    background: linear-gradient(to right, #d3ae6e, #b99656);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(185, 150, 86, 0.3);
+  }
+  
+  .luxury-button:hover {
+    background: linear-gradient(to right, #b99656, #a88545);
+    box-shadow: 0 4px 8px rgba(185, 150, 86, 0.4);
+  }
+  
