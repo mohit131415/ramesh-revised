@@ -113,4 +113,22 @@ const useProductStore = create(
   ),
 )
 
+// Add a new action to fetch the overall price range
+export const fetchOverallPriceRange = async () => {
+  try {
+    const response = await fetch("/api/api/public/filters/products/price-range")
+    if (!response.ok) {
+      throw new Error("Failed to fetch overall price range")
+    }
+    const data = await response.json()
+    if (data.status === "success" && data.data.overall_price_range) {
+      return data.data.overall_price_range
+    }
+    return { min_price: 0, max_price: 10000 } // Default fallback
+  } catch (error) {
+    console.error("Error fetching overall price range:", error)
+    return { min_price: 0, max_price: 10000 } // Default fallback on error
+  }
+}
+
 export default useProductStore

@@ -2,18 +2,18 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { ChevronDown, ChevronUp, X, Percent } from "lucide-react"
+import { ChevronDown, ChevronUp, X } from "lucide-react"
 import useProductStore from "../../store/productStore"
 import { useCategories, useSubcategories, useSubcategoriesByCategory } from "../../hooks/useCategories"
 import { Slider } from "@/components/ui/slider"
 
+// Update the component to use the price range API
 const ProductFilter = () => {
   // Remove the dietary and ratings sections from the expandedSections state
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
     subcategories: true,
     price: true,
-    discount: true,
   })
 
   const {
@@ -23,8 +23,6 @@ const ProductFilter = () => {
     setSelectedSubcategory,
     priceRange,
     setPriceRange,
-    minDiscount,
-    setMinDiscount,
     showAllCategories,
     showAllSubcategories,
     toggleShowAllCategories,
@@ -40,8 +38,6 @@ const ProductFilter = () => {
 
   // Local state for price range slider
   const [localPriceRange, setLocalPriceRange] = useState([priceRange.min, priceRange.max])
-  // Remove this line
-  // const [subcategorySearch, setSubcategorySearch] = useState("")
 
   // Update local price range when store changes
   useEffect(() => {
@@ -84,6 +80,41 @@ const ProductFilter = () => {
   const formatPrice = (price) => {
     return `₹${price.toLocaleString()}`
   }
+
+  // Add state for overall price range
+  const [overallPriceRange, setOverallPriceRange] = useState({ min: 0, max: 10000 })
+
+  // Fetch the overall price range on component mount
+  useEffect(() => {
+    const fetchPriceRange = async () => {
+      try {
+        const response = await fetch("/api/api/public/filters/products/price-range")
+        if (response.ok) {
+          const data = await response.json()
+          if (data.status === "success" && data.data.overall_price_range) {
+            const { min_price, max_price } = data.data.overall_price_range
+            setOverallPriceRange({
+              min: Number(min_price),
+              max: Number(max_price),
+            })
+
+            // Only update the local price range if it's still at default values
+            if (priceRange.min === 0 && priceRange.max === 10000) {
+              setLocalPriceRange([Number(min_price), Number(max_price)])
+              setPriceRange({
+                min: Number(min_price),
+                max: Number(max_price),
+              })
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching price range:", error)
+      }
+    }
+
+    fetchPriceRange()
+  }, [])
 
   // Replace the entire component return statement with this improved version
   return (
@@ -271,7 +302,7 @@ const ProductFilter = () => {
       </div>
 
       {/* Price Range */}
-      <div className="mb-5 border-b border-gray-200 pb-5">
+      <div className="mb-5">
         <button
           onClick={() => toggleSection("price")}
           className="flex justify-between items-center w-full text-left font-medium text-gray-900 mb-3"
@@ -294,92 +325,24 @@ const ProductFilter = () => {
             </div>
 
             <Slider
-              defaultValue={[priceRange.min, priceRange.max]}
+              defaultValue={[overallPriceRange.min, overallPriceRange.max]}
               value={localPriceRange}
-              min={0}
-              max={10000}
-              step={100}
+              min={overallPriceRange.min}
+              max={overallPriceRange.max}
+              step={Math.max(1, Math.floor((overallPriceRange.max - overallPriceRange.min) / 100))}
               onValueChange={handlePriceRangeChange}
               onValueCommit={handlePriceRangeCommit}
               className="[&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:bg-[#d3ae6e] [&_[role=slider]]:border-2 [&_[role=slider]]:border-white [&_[role=slider]]:shadow-md"
             />
-
-            {/* Predefined price ranges */}
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {[
-                { label: "Under ₹500", min: 0, max: 500 },
-                { label: "₹500 - ₹1000", min: 500, max: 1000 },
-                { label: "₹1000 - ₹2000", min: 1000, max: 2000 },
-                { label: "Above ₹2000", min: 2000, max: 10000 },
-              ].map((range, index) => (
-                <button
-                  key={index}
-                  onClick={() => setPriceRange({ min: range.min, max: range.max })}
-                  className={`text-xs py-1.5 px-3 rounded-full border transition-all ${
-                    priceRange.min === range.min && priceRange.max === range.max
-                      ? "bg-[#d3ae6e]/10 border-[#d3ae6e] text-[#d3ae6e] font-medium"
-                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {range.label}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Discount */}
-      <div className="mb-4">
-        <button
-          onClick={() => toggleSection("discount")}
-          className="flex justify-between items-center w-full text-left font-medium text-gray-900 mb-3"
-        >
-          <span className="text-base">Discount</span>
-          {expandedSections.discount ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </button>
-
-        {expandedSections.discount && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-3 mt-2"
-          >
-            {[0, 5, 10, 15, 20, 25].map((discount) => (
-              <div key={discount} className="flex items-center group">
-                <input
-                  type="radio"
-                  id={`discount-${discount}`}
-                  name="discount"
-                  checked={minDiscount === discount}
-                  onChange={() => setMinDiscount(discount)}
-                  className="h-4 w-4 border-gray-300 text-[#d3ae6e] focus:ring-[#d3ae6e]"
-                />
-                <label
-                  htmlFor={`discount-${discount}`}
-                  className="ml-2 text-sm text-gray-700 flex items-center cursor-pointer group-hover:text-[#d3ae6e] transition-colors"
-                >
-                  {discount === 0 ? (
-                    "All Products"
-                  ) : (
-                    <>
-                      <span className="flex items-center justify-center bg-[#d3ae6e] text-white rounded-full h-5 w-5 mr-1.5 text-xs">
-                        <Percent size={10} />
-                      </span>
-                      {discount}% or more
-                    </>
-                  )}
-                </label>
-              </div>
-            ))}
           </motion.div>
         )}
       </div>
 
       {/* Active Filters Summary */}
-      {(selectedCategory || selectedSubcategory || priceRange.min > 0 || priceRange.max < 10000 || minDiscount > 0) && (
+      {(selectedCategory ||
+        selectedSubcategory ||
+        priceRange.min > overallPriceRange.min ||
+        priceRange.max < overallPriceRange.max) && (
         <div className="mt-6 pt-5 border-t border-gray-200">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Active Filters:</h3>
           <div className="flex flex-wrap gap-2">
@@ -401,19 +364,13 @@ const ProductFilter = () => {
               </span>
             )}
 
-            {(priceRange.min > 0 || priceRange.max < 10000) && (
+            {(priceRange.min > overallPriceRange.min || priceRange.max < overallPriceRange.max) && (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#d3ae6e]/10 text-[#d3ae6e]">
                 {formatPrice(priceRange.min)} - {formatPrice(priceRange.max)}
-                <button onClick={() => setPriceRange({ min: 0, max: 10000 })} className="ml-1.5 hover:text-[#b08c4d]">
-                  <X size={12} />
-                </button>
-              </span>
-            )}
-
-            {minDiscount > 0 && (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#d3ae6e]/10 text-[#d3ae6e]">
-                {minDiscount}% or more off
-                <button onClick={() => setMinDiscount(0)} className="ml-1.5 hover:text-[#b08c4d]">
+                <button
+                  onClick={() => setPriceRange({ min: overallPriceRange.min, max: overallPriceRange.max })}
+                  className="ml-1.5 hover:text-[#b08c4d]"
+                >
                   <X size={12} />
                 </button>
               </span>

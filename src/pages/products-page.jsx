@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { Helmet } from "react-helmet"
 import { Filter, Search, AlertTriangle, PackageOpen } from "lucide-react"
 import useProductStore from "../store/productStore"
-import { useProducts } from "../hooks/useProducts"
+import { useProducts, useProductsByPriceRange } from "../hooks/useProducts"
 import ProductFilter from "../components/products/product-filter"
 import ProductCard from "../components/products/product-card"
 import { motion } from "framer-motion"
@@ -25,6 +25,9 @@ const ProductsPage = () => {
     setCurrentPage,
     selectedCategory,
     setSelectedCategory,
+    selectedSubcategory,
+    priceRange,
+    minDiscount,
     resetFilters,
     totalPages,
     totalItems,
@@ -65,25 +68,59 @@ const ProductsPage = () => {
     )
   }, [searchQuery, currentPage, selectedCategory, navigate, location.pathname])
 
-  // Fetch products from backend
-  const { data, isLoading, isError } = useProducts()
+  // Determine which API to use based on active filters
+  const shouldUsePriceRangeAPI = priceRange.min > 0 || priceRange.max < 10000
+
+  // Use the appropriate API hook based on filters
+  const {
+    data: productsData,
+    isLoading,
+    isError,
+  } = useProductsByPriceRange(
+    shouldUsePriceRangeAPI ? priceRange.min : 0,
+    shouldUsePriceRangeAPI ? priceRange.max : 10000,
+    currentPage,
+  )
+  const { data: defaultProductsData, isLoading: defaultIsLoading, isError: defaultIsError } = useProducts()
+
+  const isLoadingData = shouldUsePriceRangeAPI ? isLoading : defaultIsLoading
+  const isErrorData = shouldUsePriceRangeAPI ? isError : defaultIsError
+  const productsDataFinal = shouldUsePriceRangeAPI ? productsData : defaultProductsData
 
   // Extract products from the API response
   const extractProducts = () => {
-    if (!data) return []
+    if (!productsDataFinal) return []
 
-    // Handle various API response structures
-    if (Array.isArray(data)) return data
-    if (data.data?.products) return data.data.products
-    if (data.products) return data.products
-    if (data.data && Array.isArray(data.data)) return data.data
-    if (data.items) return data.items
-    if (data.results) return data.results
+    // Handle price range API response structure
+    if (shouldUsePriceRangeAPI && productsDataFinal.status === "success" && productsDataFinal.data?.products) {
+      return productsDataFinal.data.products
+    }
+
+    // Handle various API response structures for other endpoints
+    if (Array.isArray(productsDataFinal)) return productsDataFinal
+    if (productsDataFinal.data?.products) return productsDataFinal.data.products
+    if (productsDataFinal.products) return productsDataFinal.products
+    if (productsDataFinal.data && Array.isArray(productsDataFinal.data)) return productsDataFinal.data
+    if (productsDataFinal.items) return productsDataFinal.items
+    if (productsDataFinal.results) return productsDataFinal.results
 
     // If we can't determine the structure, log it and return empty array
-    console.error("Unknown API response structure:", data)
+    console.error("Unknown API response structure:", productsDataFinal)
     return []
   }
+
+  // Extract pagination data
+  useEffect(() => {
+    if (shouldUsePriceRangeAPI && productsDataFinal?.status === "success") {
+      const { total_pages, total } = productsDataFinal.data
+      // Update store with pagination data if available
+      if (total_pages !== undefined) {
+        // Assuming you have these actions in your store
+        // setTotalPages(total_pages)
+        // setTotalItems(total)
+      }
+    }
+  }, [productsDataFinal, shouldUsePriceRangeAPI])
 
   const products = extractProducts()
 
@@ -246,7 +283,7 @@ const ProductsPage = () => {
           {/* Products - Right Side */}
           <div className="w-full md:w-3/4 lg:w-4/5">
             {/* Loading state */}
-            {isLoading && (
+            {isLoadingData && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {Array.from({ length: 6 }).map((_, index) => (
                   <div key={index} className="bg-white rounded-lg shadow-md p-4 h-80">
@@ -263,14 +300,14 @@ const ProductsPage = () => {
             )}
 
             {/* Error state */}
-            {isError && (
+            {isErrorData && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
                 <div className="flex justify-center mb-4">
                   <AlertTriangle className="h-12 w-12 text-red-500" />
                 </div>
                 <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Products</h3>
                 <p className="text-red-600 mb-4">
-                  {isError.message || "There was a problem loading the products. Please try again later."}
+                  {isErrorData.message || "There was a problem loading the products. Please try again later."}
                 </p>
                 <button
                   onClick={() => window.location.reload()}
@@ -282,7 +319,7 @@ const ProductsPage = () => {
             )}
 
             {/* Empty state */}
-            {!isLoading && !isError && products.length === 0 && (
+            {!isLoadingData && !isErrorData && products.length === 0 && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                 <div className="flex justify-center mb-4">
                   <PackageOpen className="h-16 w-16 text-gray-400" />
@@ -303,7 +340,7 @@ const ProductsPage = () => {
             )}
 
             {/* Product Grid - Exactly 3 per row */}
-            {!isLoading && !isError && products.length > 0 && (
+            {!isLoadingData && !isErrorData && products.length > 0 && (
               <>
                 {/* Results count */}
                 <div className="mb-6 text-sm text-gray-500">
@@ -321,7 +358,7 @@ const ProductsPage = () => {
             )}
 
             {/* Pagination */}
-            {!isLoading && !isError && products.length > 0 && totalPages > 1 && (
+            {!isLoadingData && !isErrorData && products.length > 0 && totalPages > 1 && (
               <div className="mt-12 flex justify-center">
                 <nav className="flex items-center gap-1">
                   <button
