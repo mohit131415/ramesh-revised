@@ -12,21 +12,25 @@ const useProductStore = create(
       // Search and filter state
       searchQuery: "",
       selectedCategory: null,
+      selectedSubcategory: null,
       currentPage: 1,
       itemsPerPage: 12,
       totalPages: 1,
       totalItems: 0,
 
-      // Filter state
-      // searchQuery: "",
-      // selectedCategory: null,
-      // selectedSubcategory: null,
-      // priceRange: { min: 0, max: 10000 },
-      // sortBy: "featured", // featured, price-low-high, price-high-low, newest
-      selectedSubcategory: null,
+      // Price range filter
+      priceRange: { min: 0, max: 10000 },
 
-      // Recently viewed products
-      recentlyViewed: [],
+      // Discount filter
+      minDiscount: 0,
+
+      // Categories and subcategories
+      categories: [],
+      subcategories: [],
+
+      // Show more toggles
+      showAllCategories: false,
+      showAllSubcategories: false,
 
       // Actions
       setProducts: (products) => set({ products }),
@@ -41,33 +45,36 @@ const useProductStore = create(
 
       // Filter actions
       setSearchQuery: (query) => set({ searchQuery: query, currentPage: 1 }),
-      setSelectedCategory: (categoryId) => set({ selectedCategory: categoryId, currentPage: 1 }),
-      setSelectedSubcategory: (subcategoryId) =>
-        set({ selectedSubcategory: subcategoryId ? Number(subcategoryId) : null }),
-      // setSelectedSubcategory: (subcategoryId) => set({ selectedSubcategory: subcategoryId, currentPage: 1 }),
-      // setPriceRange: (range) => set({ priceRange: range, currentPage: 1 }),
-      // setSortBy: (sortOption) => set({ sortBy: sortOption }),
+      setSelectedCategory: (categoryId) =>
+        set({
+          selectedCategory: categoryId,
+          selectedSubcategory: null,
+          currentPage: 1,
+        }),
+      setSelectedSubcategory: (subcategoryId) => set({ selectedSubcategory: subcategoryId, currentPage: 1 }),
+      setPriceRange: (range) => set({ priceRange: range, currentPage: 1 }),
+      setMinDiscount: (discount) => set({ minDiscount: discount, currentPage: 1 }),
+
+      // Categories and subcategories actions
+      setCategories: (categories) => set({ categories }),
+      setSubcategories: (subcategories) => set({ subcategories }),
+
+      // Toggle show more actions
+      toggleShowAllCategories: () => set((state) => ({ showAllCategories: !state.showAllCategories })),
+      toggleShowAllSubcategories: () => set((state) => ({ showAllSubcategories: !state.showAllSubcategories })),
 
       // Reset filters
-      resetFilters: () => {
+      resetFilters: () =>
         set({
           searchQuery: "",
-          currentPage: 1,
           selectedCategory: null,
           selectedSubcategory: null,
-        })
-      },
-
-      // Reset filters
-      // resetFilters: () =>
-      //   set({
-      //     searchQuery: "",
-      //     selectedCategory: null,
-      //     selectedSubcategory: null,
-      //     priceRange: { min: 0, max: 10000 },
-      //     sortBy: "featured",
-      //     currentPage: 1,
-      //   }),
+          priceRange: { min: 0, max: 10000 },
+          minDiscount: 0,
+          currentPage: 1,
+          showAllCategories: false,
+          showAllSubcategories: false,
+        }),
 
       // Add product to recently viewed
       addToRecentlyViewed: (product) =>
@@ -81,25 +88,6 @@ const useProductStore = create(
           }
         }),
 
-      // Recently viewed actions
-      // addToRecentlyViewed: (product) =>
-      //   set((state) => {
-      //     // Remove product if it already exists in the list
-      //     const filtered = state.recentlyViewed.filter((p) => p.id !== product.id)
-
-      //     // Add product to the beginning of the list
-      //     const updated = [product, ...filtered].slice(0, 8) // Keep only the 8 most recent
-
-      //     // Save to localStorage
-      //     try {
-      //       localStorage.setItem("recentlyViewed", JSON.stringify(updated))
-      //     } catch (error) {
-      //       console.error("Failed to save recently viewed products to localStorage:", error)
-      //     }
-
-      //     return { recentlyViewed: updated }
-      //   }),
-
       // Initialize recently viewed from localStorage
       initRecentlyViewed: () => {
         try {
@@ -112,6 +100,9 @@ const useProductStore = create(
           console.error("Failed to load recently viewed products from localStorage:", error)
         }
       },
+
+      // Recently viewed products
+      recentlyViewed: [],
     }),
     {
       name: "product-store",

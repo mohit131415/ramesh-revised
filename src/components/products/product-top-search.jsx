@@ -10,7 +10,21 @@ const ProductTopSearch = () => {
 
   const handleSearch = (e) => {
     e.preventDefault()
-    setSearchQuery(searchTerm)
+
+    // Trim the search term to remove whitespace
+    const trimmedSearchTerm = searchTerm.trim()
+
+    // Special case for "0" - silently do nothing
+    if (trimmedSearchTerm === "0") {
+      return
+    }
+
+    // Only validate that search term is not empty
+    if (!trimmedSearchTerm) {
+      return
+    }
+
+    setSearchQuery(trimmedSearchTerm)
   }
 
   const handleClear = () => {

@@ -1,58 +1,117 @@
+"use client"
+
 import { useQuery } from "@tanstack/react-query"
-import api from "../services/api-client"
-import useCategoryStore from "../store/categoryStore"
+import { useEffect } from "react"
+import { toast } from "../components/ui/use-toast"
+import useProductStore from "../store/productStore"
+import { getCategories, getSubcategories, getSubcategoriesByCategory } from "../services/product-service"
 
-export const useCategories = (params = {}) => {
-  const { setCategories, setMetadata } = useCategoryStore()
+// Hook for fetching all categories
+export const useCategories = () => {
+  const { setCategories } = useProductStore()
 
-  return useQuery({
-    queryKey: ["categories", params],
+  const query = useQuery({
+    queryKey: ["categories"],
     queryFn: async () => {
-      const response = await api.fetchCategories(params)
-
-      // Update the Zustand store with the fetched data
-      if (response.status === "success") {
-        setCategories(response.data || [])
-        setMetadata(response.meta || {})
-      }
-
+      const response = await getCategories()
       return response
     },
-    onError: (error) => {
-      console.error("Error fetching categories:", error)
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
+    retry: 2,
   })
+
+  // Update store with categories data
+  useEffect(() => {
+    if (query.data && query.data.data) {
+      setCategories(query.data.data)
+    }
+  }, [query.data, setCategories])
+
+  // Show error toast if query fails
+  useEffect(() => {
+    if (query.error) {
+      toast({
+        title: "Error loading categories",
+        description: "There was a problem loading the categories. Please try again.",
+        variant: "destructive",
+      })
+      console.error("Categories fetch error:", query.error)
+    }
+  }, [query.error])
+
+  return query
 }
 
-export const useCategoryById = (categoryId) => {
-  return useQuery({
-    queryKey: ["category", categoryId],
+// Hook for fetching all subcategories
+export const useSubcategories = () => {
+  const { setSubcategories } = useProductStore()
+
+  const query = useQuery({
+    queryKey: ["subcategories"],
     queryFn: async () => {
-      const response = await fetch(`${api.API_BASE_URL}/api/public/categories/${categoryId}`)
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
-      }
-      return await response.json()
+      const response = await getSubcategories()
+      return response
     },
-    enabled: !!categoryId, // Only run the query if categoryId is provided
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
+    retry: 2,
   })
+
+  // Update store with subcategories data
+  useEffect(() => {
+    if (query.data && query.data.data) {
+      setSubcategories(query.data.data)
+    }
+  }, [query.data, setSubcategories])
+
+  // Show error toast if query fails
+  useEffect(() => {
+    if (query.error) {
+      toast({
+        title: "Error loading subcategories",
+        description: "There was a problem loading the subcategories. Please try again.",
+        variant: "destructive",
+      })
+      console.error("Subcategories fetch error:", query.error)
+    }
+  }, [query.error])
+
+  return query
 }
 
-export const useCategoryTree = () => {
-  return useQuery({
-    queryKey: ["categoryTree"],
+// Hook for fetching subcategories by category
+export const useSubcategoriesByCategory = (categoryId) => {
+  const { setSubcategories } = useProductStore()
+
+  const query = useQuery({
+    queryKey: ["subcategories", categoryId],
     queryFn: async () => {
-      const response = await fetch(`${api.API_BASE_URL}/api/public/categories/tree`)
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
-      }
-      return await response.json()
+      if (!categoryId) return { data: { subcategories: [] } }
+      const response = await getSubcategoriesByCategory(categoryId)
+      return response
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    enabled: !!categoryId, // Only run if categoryId exists
+    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
+    retry: 2,
   })
+
+  // Update store with subcategories data
+  useEffect(() => {
+    if (query.data && query.data.data && query.data.data.subcategories) {
+      setSubcategories(query.data.data.subcategories)
+    }
+  }, [query.data, setSubcategories])
+
+  // Show error toast if query fails
+  useEffect(() => {
+    if (query.error) {
+      toast({
+        title: "Error loading subcategories",
+        description: "There was a problem loading the subcategories. Please try again.",
+        variant: "destructive",
+      })
+      console.error("Subcategories fetch error:", query.error)
+    }
+  }, [query.error])
+
+  return query
 }

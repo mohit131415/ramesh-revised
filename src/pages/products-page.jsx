@@ -25,8 +25,6 @@ const ProductsPage = () => {
     setCurrentPage,
     selectedCategory,
     setSelectedCategory,
-    selectedSubcategory,
-    setSelectedSubcategory,
     resetFilters,
     totalPages,
     totalItems,
@@ -38,12 +36,10 @@ const ProductsPage = () => {
     const queryFromUrl = params.get("q") || ""
     const pageFromUrl = Number.parseInt(params.get("page") || "1", 10)
     const categoryFromUrl = params.get("category") || null
-    const subcategoryFromUrl = params.get("subcategory") || null
 
     if (queryFromUrl) setSearchQuery(queryFromUrl)
     if (pageFromUrl) setCurrentPage(pageFromUrl)
     if (categoryFromUrl) setSelectedCategory(Number.parseInt(categoryFromUrl, 10))
-    if (subcategoryFromUrl) setSelectedSubcategory(Number.parseInt(subcategoryFromUrl, 10))
 
     setSearchTerm(queryFromUrl)
   }, [])
@@ -52,10 +48,13 @@ const ProductsPage = () => {
   useEffect(() => {
     const params = new URLSearchParams()
 
-    if (searchQuery) params.set("q", searchQuery)
+    // Only add search query if it's not empty and not "0"
+    if (searchQuery && searchQuery.trim() && searchQuery.trim() !== "0") {
+      params.set("q", searchQuery)
+    }
+
     if (currentPage > 1) params.set("page", currentPage.toString())
     if (selectedCategory) params.set("category", selectedCategory.toString())
-    if (selectedSubcategory) params.set("subcategory", selectedSubcategory.toString())
 
     navigate(
       {
@@ -64,7 +63,7 @@ const ProductsPage = () => {
       },
       { replace: true },
     )
-  }, [searchQuery, currentPage, selectedCategory, selectedSubcategory, navigate, location.pathname])
+  }, [searchQuery, currentPage, selectedCategory, navigate, location.pathname])
 
   // Fetch products from backend
   const { data, isLoading, isError } = useProducts()
@@ -162,8 +161,18 @@ const ProductsPage = () => {
                     // Debounce search as user types
                     clearTimeout(searchTimeout.current)
                     searchTimeout.current = setTimeout(() => {
-                      setSearchQuery(value)
-                      setCurrentPage(1)
+                      // Validate search term before setting
+                      const trimmedValue = value.trim()
+
+                      // Special case for "0" - silently do nothing
+                      if (trimmedValue === "0") {
+                        return
+                      }
+
+                      if (trimmedValue) {
+                        setSearchQuery(trimmedValue)
+                        setCurrentPage(1)
+                      }
                     }, 500)
                   }}
                   placeholder="Search for sweets, gift boxes, and more..."

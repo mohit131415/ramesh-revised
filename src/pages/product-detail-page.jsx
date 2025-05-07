@@ -55,12 +55,30 @@ export default function ProductDetailPage() {
 
   const product = productData?.data
 
+  // Sort variants by price (lowest first) if available
+  if (product && product.variants && product.variants.length > 0) {
+    // Create a sorted copy of the variants array
+    product.variants = [...product.variants].sort((a, b) => {
+      // Use sale_price if available, otherwise use regular price
+      const priceA = a.sale_price || a.price
+      const priceB = b.sale_price || b.price
+      return priceA - priceB
+    })
+  }
+
   // Set the selected variant when product data is loaded
   useEffect(() => {
     if (product && product.variants && product.variants.length > 0) {
-      // Find the default variant (usually the first one)
-      const defaultVariant = product.variants.find((v) => v.is_default === 1) || product.variants[0]
-      setSelectedVariant(defaultVariant)
+      // Find the variant with the lowest price
+      const lowestPriceVariant = product.variants.reduce((lowest, current) => {
+        // Use sale_price if available, otherwise use regular price
+        const lowestPrice = lowest.sale_price || lowest.price
+        const currentPrice = current.sale_price || current.price
+
+        return currentPrice < lowestPrice ? current : lowest
+      }, product.variants[0])
+
+      setSelectedVariant(lowestPriceVariant)
     }
   }, [product])
 

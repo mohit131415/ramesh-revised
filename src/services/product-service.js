@@ -1,4 +1,4 @@
-const API_BASE_URL = "/api/api/public"
+const API_BASE_URL = "/api/api/public" // Correctly use the proxy with the proper path structure
 
 // Get all products with pagination
 export const getProducts = async (page = 1, limit = 10) => {
@@ -72,35 +72,60 @@ export const getProductsByCategory = async (categoryId, page = 1, limit = 10) =>
   }
 }
 
-// Add this function to fetch products by subcategory
-export const getProductsBySubcategory = async (
-  subcategoryId,
-  page = 1,
-  limit = 12,
-  sortBy = "created_at",
-  sortOrder = "desc",
-) => {
+// Get products by subcategory - Fixed to use proxy correctly
+export const getProductsBySubcategory = async (subcategoryId, page = 1, limit = 10) => {
   try {
-    if (!subcategoryId) {
-      throw new Error("Subcategory ID is required")
-    }
-
-    const params = new URLSearchParams()
-    params.append("page", page)
-    params.append("limit", limit)
-    params.append("sort_by", sortBy)
-    params.append("sort_order", sortOrder)
-
-    const url = `${API_BASE_URL}/products/subcategory/${subcategoryId}?${params.toString()}`
-    const response = await fetch(url)
-
+    const response = await fetch(
+      `${API_BASE_URL}/filters/products/subcategory/${subcategoryId}?page=${page}&limit=${limit}`,
+    )
     if (!response.ok) {
-      throw new Error(`Failed to fetch products for subcategory ${subcategoryId}`)
+      throw new Error("Failed to fetch products by subcategory")
     }
-
     return await response.json()
   } catch (error) {
-    console.error("Error fetching products by subcategory:", error)
+    console.error(`Error fetching products for subcategory ${subcategoryId}:`, error)
+    throw error
+  }
+}
+
+// Get all categories
+export const getCategories = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/filters/categories`)
+    if (!response.ok) {
+      throw new Error("Failed to fetch categories")
+    }
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching categories:", error)
+    throw error
+  }
+}
+
+// Get all subcategories
+export const getSubcategories = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/filters/subcategories`)
+    if (!response.ok) {
+      throw new Error("Failed to fetch subcategories")
+    }
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching subcategories:", error)
+    throw error
+  }
+}
+
+// Get subcategories by category
+export const getSubcategoriesByCategory = async (categoryId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/filters/subcategories/category/${categoryId}`)
+    if (!response.ok) {
+      throw new Error("Failed to fetch subcategories by category")
+    }
+    return await response.json()
+  } catch (error) {
+    console.error(`Error fetching subcategories for category ${categoryId}:`, error)
     throw error
   }
 }

@@ -38,14 +38,17 @@ const ProductCard = ({ product }) => {
     return `http://localhost/ramesh-be/be/api/public/${imagePath}`
   }
 
-  // Get the primary variant (usually the smallest size)
-  const primaryVariant =
-    variants.length > 0
-      ? variants.sort((a, b) => a.display_order - b.display_order)[0]
-      : { price: 0, sale_price: 0, variant_name: "" }
+  // Find the variant with the lowest effective price (sale price or regular price)
+  const primaryVariant = variants.length > 0
+    ? variants.sort((a, b) => {
+      const priceA = a.sale_price && Number(a.sale_price) > 0 ? Number(a.sale_price) : Number(a.price);
+      const priceB = b.sale_price && Number(b.sale_price) > 0 ? Number(b.sale_price) : Number(b.price);
+      return priceA - priceB;
+    })[0]
+  : { price: 0, sale_price: 0, variant_name: "" };
 
-  const price = primaryVariant.price || 0
-  const salePrice = primaryVariant.sale_price || 0
+  const price = primaryVariant.price ? Number.parseFloat(primaryVariant.price) : 0
+  const salePrice = primaryVariant.sale_price ? Number.parseFloat(primaryVariant.sale_price) : 0
   const variantName = primaryVariant.variant_name || ""
   const discount = salePrice && price > salePrice ? Math.round(((price - salePrice) / price) * 100) : 0
 
@@ -63,6 +66,12 @@ const ProductCard = ({ product }) => {
 
   // Generate product URL - use slug if available, otherwise use ID
   const productUrl = slug ? `/product/slug/${slug}` : `/product/${id}`
+
+  // Format price with proper decimal places
+  const formatPrice = (value) => {
+    if (!value) return "0.00"
+    return Number.parseFloat(value).toFixed(2)
+  }
 
   return (
     <Link to={productUrl} className="block relative group">
@@ -122,10 +131,22 @@ const ProductCard = ({ product }) => {
           <h3 className="text-gray-800 mb-1 text-xl font-medium">{name}</h3>
 
           {/* Variant name */}
-          {variantName && <div className="text-sm text-gray-600 mb-2">Starting from {variantName}</div>}
+          {variantName && <div className="text-sm text-gray-600 mb-2">From {variantName} (lowest price)</div>}
 
           {/* Short description */}
           {short_description && <p className="text-sm text-gray-500 mb-4">{short_description}</p>}
+
+          {/* Pricing information */}
+          <div className="flex items-center mt-2 mb-3">
+            {salePrice > 0 && price > salePrice ? (
+              <>
+                <span className="text-lg font-semibold text-[#d3ae6e]">₹{formatPrice(salePrice)}</span>
+                <span className="ml-2 text-sm text-gray-500 line-through">₹{formatPrice(price)}</span>
+              </>
+            ) : (
+              <span className="text-lg font-semibold text-[#d3ae6e]">₹{formatPrice(price)}</span>
+            )}
+          </div>
 
           {/* Variants display */}
           {variants.length > 0 && (
