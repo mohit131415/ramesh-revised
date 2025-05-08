@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { toast } from "../components/ui/use-toast"
 import useProductStore from "../store/productStore"
 import {
@@ -12,14 +12,13 @@ import {
 } from "../services/product-service"
 
 // Hook for fetching products with search and pagination
-export const useProducts = () => {
+export const useProducts = (enabled = true) => {
   const {
     searchQuery,
     currentPage,
     itemsPerPage,
     selectedCategory,
     selectedSubcategory,
-    priceRange,
     minDiscount,
     setTotalPages,
     setTotalItems,
@@ -46,9 +45,7 @@ export const useProducts = () => {
         setTotalItems(response.data.total || 0)
       }
 
-      // Apply client-side filtering for price and discount
-      const filteredProducts = response
-
+      // Apply client-side filtering for discount
       if (response && response.data && response.data.products) {
         // Extract products from response
         let products = response.data.products
@@ -59,15 +56,6 @@ export const useProducts = () => {
         } else {
           console.warn("Unknown product structure:", products)
           products = []
-        }
-
-        // Apply price filter
-        if (priceRange.min > 0 || priceRange.max < 10000) {
-          products = products.filter((product) => {
-            // Get the lowest price from variants
-            const lowestPrice = Math.min(...product.variants.map((v) => Number.parseFloat(v.sale_price || v.price)))
-            return lowestPrice >= priceRange.min && lowestPrice <= priceRange.max
-          })
         }
 
         // Apply discount filter
@@ -86,7 +74,7 @@ export const useProducts = () => {
         }
       }
 
-      return filteredProducts
+      return response
     } catch (error) {
       console.error("Error fetching products:", error)
       throw error
@@ -101,8 +89,6 @@ export const useProducts = () => {
     itemsPerPage,
     selectedCategory,
     selectedSubcategory,
-    priceRange.min,
-    priceRange.max,
     minDiscount,
   ]
 
@@ -113,6 +99,7 @@ export const useProducts = () => {
     keepPreviousData: true, // Keep old data while fetching new data
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     retry: 2, // Retry failed requests twice
+    enabled: enabled, // Only run this query when enabled is true
   })
 
   // Show error toast if query fails
@@ -162,36 +149,31 @@ export const useProductBySlug = (slug) => {
   })
 }
 
-// Add a new hook for fetching products by price range
-export const useProductsByPriceRange = (minPrice, maxPrice, page = 1, limit = 12) => {
-  const [data, setData] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isError, setIsError] = useState(null)
+// Hook for fetching products by price range
+export const useProductsByPriceRange = (minPrice, maxPrice, page = 1, limit = 12, enabled = true) => {
+  return useQuery({
+    queryKey: ["products", "price-range", minPrice, maxPrice, page, limit],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/api/public/filters/products/price-range?min_price=${minPrice}&max_price=${maxPrice}&page=${page}&limit=${limit}`,
+      )
 
-  useEffect(() => {
-    const fetchProductsByPriceRange = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(
-          `/api/api/public/filters/products/price-range?min_price=${minPrice}&max_price=${maxPrice}&page=${page}&limit=${limit}`,
-        )
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch products by price range: ${response.statusText}`)
-        }
-
-        const result = await response.json()
-        setData(result)
-        setIsLoading(false)
-      } catch (error) {
-        console.error("Error fetching products by price range:", error)
-        setIsError(error)
-        setIsLoading(false)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products by price range: ${response.statusText}`)
       }
-    }
 
-    fetchProductsByPriceRange()
-  }, [minPrice, maxPrice, page, limit])
-
-  return { data, isLoading, isError }
+      return response.json()
+    },
+    enabled: enabled, // Only run this query when enabled is true
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    retry: 2, // Retry failed requests twice
+    onError: (error) => {
+      toast({
+        title: "Error loading products",
+        description: error.message || "There was a problem loading the products. Please try again.",
+        variant: "destructive",
+      })
+      console.error("Price range API error:", error)
+    },
+  })
 }

@@ -13,8 +13,14 @@ import { motion } from "framer-motion"
 const ProductsPage = () => {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [isPriceFilterActive, setIsPriceFilterActive] = useState(false)
+  const [prevPriceRange, setPrevPriceRange] = useState({ min: 0, max: 10000 })
+  const [initialPriceRange, setInitialPriceRange] = useState(null)
+  const [prevProductCount, setPrevProductCount] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
+  const productsRef = useRef(null)
+  const firstProductRef = useRef(null)
 
   const searchTimeout = useRef(null)
 
@@ -27,10 +33,12 @@ const ProductsPage = () => {
     setSelectedCategory,
     selectedSubcategory,
     priceRange,
-    minDiscount,
+    setPriceRange,
     resetFilters,
     totalPages,
+    setTotalPages,
     totalItems,
+    setTotalItems,
   } = useProductStore()
 
   // Sync URL with store state on initial load
@@ -68,66 +76,117 @@ const ProductsPage = () => {
     )
   }, [searchQuery, currentPage, selectedCategory, navigate, location.pathname])
 
-  // Determine which API to use based on active filters
-  const shouldUsePriceRangeAPI = priceRange.min > 0 || priceRange.max < 10000
+  // Store the initial price range when it's first loaded
+  useEffect(() => {
+    if (initialPriceRange === null && priceRange.min !== 0 && priceRange.max !== 10000) {
+      setInitialPriceRange({ ...priceRange })
+      setPrevPriceRange({ ...priceRange })
+    }
+  }, [priceRange, initialPriceRange])
 
-  // Use the appropriate API hook based on filters
+  // Only activate price filter when user explicitly changes it from the initial values
+  useEffect(() => {
+    // Skip if we don't have initial values yet
+    if (!initialPriceRange) return
+
+    // Check if price range has actually changed from previous value
+    if (priceRange.min !== prevPriceRange.min || priceRange.max !== prevPriceRange.max) {
+      // Only consider it active if user has explicitly changed it from the initial range
+      const isExplicitlyChanged = priceRange.min !== initialPriceRange.min || priceRange.max !== initialPriceRange.max
+
+      setIsPriceFilterActive(isExplicitlyChanged)
+      setPrevPriceRange({ ...priceRange })
+    }
+  }, [priceRange, initialPriceRange])
+
+  // Only fetch data from the price range API when price filtering is active
   const {
-    data: productsData,
-    isLoading,
-    isError,
+    data: priceRangeData,
+    isLoading: isPriceRangeLoading,
+    isError: isPriceRangeError,
   } = useProductsByPriceRange(
-    shouldUsePriceRangeAPI ? priceRange.min : 0,
-    shouldUsePriceRangeAPI ? priceRange.max : 10000,
+    priceRange.min,
+    priceRange.max,
     currentPage,
+    12,
+    isPriceFilterActive, // Only run this query when price filtering is active
   )
-  const { data: defaultProductsData, isLoading: defaultIsLoading, isError: defaultIsError } = useProducts()
 
-  const isLoadingData = shouldUsePriceRangeAPI ? isLoading : defaultIsLoading
-  const isErrorData = shouldUsePriceRangeAPI ? isError : defaultIsError
-  const productsDataFinal = shouldUsePriceRangeAPI ? productsData : defaultProductsData
+  // Only fetch data from the regular products API when price filtering is NOT active
+  const {
+    data: regularProductsData,
+    isLoading: isRegularProductsLoading,
+    isError: isRegularProductsError,
+  } = useProducts(
+    !isPriceFilterActive, // Only run this query when price filtering is NOT active
+  )
+
+  // Use the appropriate data source based on which API was called
+  const productsData = isPriceFilterActive ? priceRangeData : regularProductsData
+  const isLoading = isPriceFilterActive ? isPriceRangeLoading : isRegularProductsLoading
+  const isError = isPriceFilterActive ? isPriceRangeError : isRegularProductsError
 
   // Extract products from the API response
   const extractProducts = () => {
-    if (!productsDataFinal) return []
+    if (!productsData) return []
 
     // Handle price range API response structure
-    if (shouldUsePriceRangeAPI && productsDataFinal.status === "success" && productsDataFinal.data?.products) {
-      return productsDataFinal.data.products
+    if (isPriceFilterActive && productsData.status === "success" && productsData.data?.products) {
+      return productsData.data.products
     }
 
     // Handle various API response structures for other endpoints
-    if (Array.isArray(productsDataFinal)) return productsDataFinal
-    if (productsDataFinal.data?.products) return productsDataFinal.data.products
-    if (productsDataFinal.products) return productsDataFinal.products
-    if (productsDataFinal.data && Array.isArray(productsDataFinal.data)) return productsDataFinal.data
-    if (productsDataFinal.items) return productsDataFinal.items
-    if (productsDataFinal.results) return productsDataFinal.results
+    if (Array.isArray(productsData)) return productsData
+    if (productsData.data?.products) return productsData.data.products
+    if (productsData.products) return productsData.products
+    if (productsData.data && Array.isArray(productsData.data)) return productsData.data
+    if (productsData.items) return productsData.items
+    if (productsData.results) return productsData.results
 
     // If we can't determine the structure, log it and return empty array
-    console.error("Unknown API response structure:", productsDataFinal)
+    console.error("Unknown API response structure:", productsData)
     return []
   }
 
-  // Extract pagination data
+  // Update pagination data when productsData changes
   useEffect(() => {
-    if (shouldUsePriceRangeAPI && productsDataFinal?.status === "success") {
-      const { total_pages, total } = productsDataFinal.data
+    if (isPriceFilterActive && productsData?.status === "success") {
+      const { total_pages, total } = productsData.data
       // Update store with pagination data if available
       if (total_pages !== undefined) {
-        // Assuming you have these actions in your store
-        // setTotalPages(total_pages)
-        // setTotalItems(total)
+        setTotalPages(total_pages)
+        setTotalItems(total || 0)
       }
     }
-  }, [productsDataFinal, shouldUsePriceRangeAPI])
+  }, [productsData, isPriceFilterActive, setTotalPages, setTotalItems])
 
   const products = extractProducts()
 
-  // Debug the product structure
+  // Scroll to first product when filters are applied and products are less than 9
   useEffect(() => {
-    // No console log needed
-  }, [products])
+    // Only scroll on page changes
+    if (currentPage > 1) {
+      window.scrollTo({ top: 0, behavior: "auto" })
+      return
+    }
+
+    // Skip if loading or error
+    if (isLoading || isError) return
+
+    // Check if product count has changed (filter applied)
+    const hasProductCountChanged = prevProductCount !== products.length
+    setPrevProductCount(products.length)
+
+    // If filters applied (product count changed) and less than 9 products
+    if (hasProductCountChanged && products.length > 0 && products.length < 9) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        if (productsRef.current) {
+          productsRef.current.scrollIntoView({ behavior: "auto", block: "start" })
+        }
+      }, 100)
+    }
+  }, [products.length, isLoading, isError, currentPage, prevProductCount])
 
   const handleClearSearch = () => {
     setSearchTerm("")
@@ -137,7 +196,7 @@ const ProductsPage = () => {
 
   const handlePageChange = (page) => {
     setCurrentPage(page)
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    // Scrolling handled by the useEffect
   }
 
   return (
@@ -281,9 +340,9 @@ const ProductsPage = () => {
           </div>
 
           {/* Products - Right Side */}
-          <div className="w-full md:w-3/4 lg:w-4/5">
+          <div ref={productsRef} className="w-full md:w-3/4 lg:w-4/5">
             {/* Loading state */}
-            {isLoadingData && (
+            {isLoading && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {Array.from({ length: 6 }).map((_, index) => (
                   <div key={index} className="bg-white rounded-lg shadow-md p-4 h-80">
@@ -300,14 +359,14 @@ const ProductsPage = () => {
             )}
 
             {/* Error state */}
-            {isErrorData && (
+            {isError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
                 <div className="flex justify-center mb-4">
                   <AlertTriangle className="h-12 w-12 text-red-500" />
                 </div>
                 <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Products</h3>
                 <p className="text-red-600 mb-4">
-                  {isErrorData.message || "There was a problem loading the products. Please try again later."}
+                  {isError.message || "There was a problem loading the products. Please try again later."}
                 </p>
                 <button
                   onClick={() => window.location.reload()}
@@ -319,7 +378,7 @@ const ProductsPage = () => {
             )}
 
             {/* Empty state */}
-            {!isLoadingData && !isErrorData && products.length === 0 && (
+            {!isLoading && !isError && products.length === 0 && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                 <div className="flex justify-center mb-4">
                   <PackageOpen className="h-16 w-16 text-gray-400" />
@@ -340,7 +399,7 @@ const ProductsPage = () => {
             )}
 
             {/* Product Grid - Exactly 3 per row */}
-            {!isLoadingData && !isErrorData && products.length > 0 && (
+            {!isLoading && !isError && products.length > 0 && (
               <>
                 {/* Results count */}
                 <div className="mb-6 text-sm text-gray-500">
@@ -350,15 +409,17 @@ const ProductsPage = () => {
 
                 {/* Products grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                  {products.map((product, index) => (
+                    <div key={product.id} ref={index === 0 ? firstProductRef : null}>
+                      <ProductCard product={product} />
+                    </div>
                   ))}
                 </div>
               </>
             )}
 
             {/* Pagination */}
-            {!isLoadingData && !isErrorData && products.length > 0 && totalPages > 1 && (
+            {!isLoading && !isError && products.length > 0 && totalPages > 1 && (
               <div className="mt-12 flex justify-center">
                 <nav className="flex items-center gap-1">
                   <button

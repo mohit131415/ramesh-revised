@@ -39,6 +39,12 @@ const ProductFilter = () => {
   // Local state for price range slider
   const [localPriceRange, setLocalPriceRange] = useState([priceRange.min, priceRange.max])
 
+  // Add state for overall price range
+  const [overallPriceRange, setOverallPriceRange] = useState({ min: 0, max: 10000 })
+
+  // Flag to track if price range API has been fetched
+  const [hasFetchedPriceRange, setHasFetchedPriceRange] = useState(false)
+
   // Update local price range when store changes
   useEffect(() => {
     setLocalPriceRange([priceRange.min, priceRange.max])
@@ -81,35 +87,38 @@ const ProductFilter = () => {
     return `₹${price.toLocaleString()}`
   }
 
-  // Add state for overall price range
-  const [overallPriceRange, setOverallPriceRange] = useState({ min: 0, max: 10000 })
-
-  // Fetch the overall price range on component mount
+  // Fetch the overall price range only once on component mount
   useEffect(() => {
     const fetchPriceRange = async () => {
-      try {
-        const response = await fetch("/api/api/public/filters/products/price-range")
-        if (response.ok) {
-          const data = await response.json()
-          if (data.status === "success" && data.data.overall_price_range) {
-            const { min_price, max_price } = data.data.overall_price_range
-            setOverallPriceRange({
-              min: Number(min_price),
-              max: Number(max_price),
-            })
-
-            // Only update the local price range if it's still at default values
-            if (priceRange.min === 0 && priceRange.max === 10000) {
-              setLocalPriceRange([Number(min_price), Number(max_price)])
-              setPriceRange({
+      // Only fetch if we haven't already
+      if (!hasFetchedPriceRange) {
+        try {
+          const response = await fetch("/api/api/public/filters/products/price-range")
+          if (response.ok) {
+            const data = await response.json()
+            if (data.status === "success" && data.data.overall_price_range) {
+              const { min_price, max_price } = data.data.overall_price_range
+              setOverallPriceRange({
                 min: Number(min_price),
                 max: Number(max_price),
               })
+
+              // Only update the local price range if it's still at default values
+              if (priceRange.min === 0 && priceRange.max === 10000) {
+                setLocalPriceRange([Number(min_price), Number(max_price)])
+                setPriceRange({
+                  min: Number(min_price),
+                  max: Number(max_price),
+                })
+              }
+
+              // Mark as fetched so we don't fetch again
+              setHasFetchedPriceRange(true)
             }
           }
+        } catch (error) {
+          console.error("Error fetching price range:", error)
         }
-      } catch (error) {
-        console.error("Error fetching price range:", error)
       }
     }
 
